@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta property="og:title" content="Spelling Game">
+<meta property="og:description" content="Practice spelling with an interactive game!">
+<title>Spelling Game with Admin</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background-color: #fefbd8; }
+  h1 { color: #333; }
+  input { padding: 8px; font-size: 18px; width: 220px; margin-top: 10px; }
+  button { padding: 8px 16px; font-size: 18px; margin: 10px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; }
+  button:hover { background-color: #45a049; }
+  .feedback { margin-top: 10px; font-size: 18px; height: 24px; }
+  .results { margin-top: 20px; font-weight: bold; font-size: 20px; }
+  #leaderboard, #student-history, #admin-panel { margin-top: 20px; text-align: left; display: inline-block; max-width: 700px; }
+  ul { padding-left: 20px; }
+  #tabs button { margin: 5px; }
+  .share-section { margin-top: 20px; padding: 15px; background-color: #e8f4f8; border-radius: 8px; }
+  .share-btn { background-color: #2196F3; padding: 10px 20px; }
+  .share-btn:hover { background-color: #0b7dda; }
+</style>
+</head>
+<body>
+
+<h1>🎮 Spelling Game</h1>
+
+<div id="tabs">
+  <button onclick="showTab('gameTab')">Game</button>
+  <button onclick="showTab('adminTab')">Admin</button>
+  <button onclick="showTab('shareTab')">Share</button>
+</div>
+
+<div id="gameTab">
+  <div id="player-name-input">
+    <input type="text" id="player-name" placeholder="Enter your name">
+    <button onclick="startGame()">Start Game</button>
+  </div>
+
+  <div id="game" style="display:none;">
+    <input type="text" id="user-input" placeholder="Type the word here" autofocus>
+    <br>
+    <button onclick="submitWord()">Submit</button>
+    <button onclick="playWord()">🔊 Hear Word Again</button>
+    <p id="progress"></p>
+    <p class="feedback" id="feedback"></p>
+    <p>Score: <span id="score">0</span></p>
+  </div>
+
+  <div class="results" id="results"></div>
+  <div id="leaderboard"></div>
+  <div id="student-history"></div>
+</div>
+
+<div id="adminTab" style="display:none;">
+  <h2>Admin Panel - All Student Scores</h2>
+  <button onclick="showAllStudentData()">Refresh Data</button>
+  <button onclick="clearAllData()">Clear All Data</button>
+  <div id="admin-panel"></div>
+</div>
+
+<div id="shareTab" style="display:none;">
+  <div class="share-section">
+    <h2>Share This Game</h2>
+    <p>Copy the link below to share with others:</p>
+    <input type="text" id="share-link" value="" readonly style="width: 100%; padding: 10px; margin: 10px 0;">
+    <button class="share-btn" onclick="copyToClipboard()">📋 Copy Link</button>
+    <button class="share-btn" onclick="shareVia()">📤 Share</button>
+    <hr>
+    <h3>How to Host This Game:</h3>
+    <ul style="text-align: left;">
+      <li><strong>GitHub Pages:</strong> Push to GitHub, enable Pages in settings</li>
+      <li><strong>Netlify:</strong> Drag & drop this file at netlify.com</li>
+      <li><strong>Vercel:</strong> Deploy at vercel.com</li>
+      <li><strong>Local:</strong> Save as .html file and open in browser</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// Word list
+const words = [
+  "happy","silly","funny","sunny","muddy","bunny","puppy","kitty","belly","jelly",
+  "penny","tummy","mommy","daddy","candy","fuzzy","hurry","worry","reject","detect",
+  "predict","item","why","defend","native","unit","decline","debate","erode","Locate",
+  "respond","program","pretend","robot","refine","equip","devote","react","restrict","incline",
+  "define","relax","focus","revise","recline","motive","migrate","require","equate","shy",
+  "pry","pro","behind","sly","retire","depend","basic","eject","beside","behave",
+  "humid","tulip","began","donate","rotate","remind","solo","duty","nasty","empty",
+  "cozy","jelly","belly","ugly","happy","handy","penny","granny","candy","pantry",
+  "muggy","puny","puppy","buggy","dizzy","fifty","ruby","daddy","angry","pony",
+  "lobby","ivy","lady","plenty","silly","baby","crazy","navy","tidy","taffy",
+  "gravy","lazy","extra","awake","amuse","scuba","adopt","adapt","adult","amend",
+  "arise","delta","abandon","Africa","Sandra","awhile","alone","alive","awoke","amaze",
+  "Alaska","aside","Kenya","Eva","Atlanta","Rosa","yoga","indicate","estimate","investigate",
+  "evident","minimum","institute","implicate","substitute","confident","hesitate","apricot","domino","continent",
+  "gravity","cabinet","cavity","president","imitate","quality","qualify","motivate","compliment","hospital",
+  "festival","champion","piano","obedient","Indian","scorpion","stadium","radio","medium","studio",
+  "Philadelphia","radiate","retirement","predictable","rotating","located","hesitating","amazed","awaken","imitating",
+  "confidently","reminder","amazement","complimented","substituting"
+];
+
+function shuffle(array) {
+  for (let i = array.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+let playerName = '';
+let gameSize = 20;
+let currentIndex = 0;
+let score = 0;
+let currentGame = [];
+let studentAttempts = [];
+
+// Initialize share link
+window.addEventListener('load', function() {
+  document.getElementById('share-link').value = window.location.href;
+});
+
+// Show tabs
+function showTab(tabId){
+  document.getElementById("gameTab").style.display = tabId==="gameTab"?"block":"none";
+  document.getElementById("adminTab").style.display = tabId==="adminTab"?"block":"none";
+  document.getElementById("shareTab").style.display = tabId==="shareTab"?"block":"none";
+}
+
+// Copy to clipboard
+function copyToClipboard(){
+  const shareLink = document.getElementById('share-link');
+  shareLink.select();
+  document.execCommand('copy');
+  alert('Link copied to clipboard!');
+}
+
+// Share via Web Share API
+function shareVia(){
+  if(navigator.share){
+    navigator.share({
+      title: 'Spelling Game',
+      text: 'Practice spelling with this interactive game!',
+      url: window.location.href
+    }).catch(err => console.log('Error sharing:', err));
+  } else {
+    alert('Share feature not supported. Copy the link manually!');
+  }
+}
+
+// Start game
+function startGame(){
+  const nameInput = document.getElementById("player-name").value.trim();
+  if(!nameInput){ alert("Enter your name"); return;}
+  playerName = nameInput;
+  document.getElementById("player-name-input").style.display = "none";
+  document.getElementById("game").style.display = "block";
+  startNewRound();
+}
+
+// Start new round
+function startNewRound(){
+  currentIndex = 0;
+  score = 0;
+  studentAttempts = [];
+  shuffle(words);
+  currentGame = words.slice(0,gameSize);
+  document.getElementById("score").textContent = score;
+  updateProgress();
+  playWord();
+}
+
+// Play word
+function playWord(){
+  const utterance = new SpeechSynthesisUtterance(currentGame[currentIndex]);
+  speechSynthesis.speak(utterance);
+}
+
+// Update progress
+function updateProgress(){
+  document.getElementById("progress").textContent = `Word ${currentIndex+1} of ${currentGame.length}`;
+  document.getElementById("feedback").textContent = "";
+}
+
+// Submit word
+function submitWord(){
+  const input = document.getElementById("user-input").value.trim();
+  const correct = input.toLowerCase() === currentGame[currentIndex].toLowerCase();
+  if(correct){ score++; document.getElementById("feedback").textContent="✅ Correct!"; }
+  else { document.getElementById("feedback").textContent=`❌ Incorrect! Word was: "${currentGame[currentIndex]}"`; }
+  
+  studentAttempts.push({word: currentGame[currentIndex], typed: input, correct});
+  
+  document.getElementById("score").textContent = score;
+  currentIndex++;
+  document.getElementById("user-input").value="";
+  
+  if(currentIndex<currentGame.length){
+    updateProgress();
+    setTimeout(playWord,700);
+  } else { endGame(); }
+}
+
+// End game
+function endGame(){
+  document.getElementById("game").style.display="none";
+  document.getElementById("results").textContent=`${playerName}, you spelled ${score} out of ${gameSize} words correctly!`;
+  saveStudentData();
+  showLeaderboard();
+  showStudentHistory();
+}
+
+// Save student data
+function saveStudentData(){
+  let allData = JSON.parse(localStorage.getItem("spellingStudents")||"{}");
+  if(!allData[playerName]) allData[playerName]=[];
+  allData[playerName].push({score, attempts: studentAttempts});
+  localStorage.setItem("spellingStudents", JSON.stringify(allData));
+}
+
+// Show leaderboard
+function showLeaderboard(){
+  const allData = JSON.parse(localStorage.getItem("spellingStudents")||"{}");
+  let leaderboard = [];
+  for(const student in allData){
+    allData[student].forEach(round => leaderboard.push({name: student, score: round.score}));
+  }
+  leaderboard.sort((a,b)=>b.score-a.score);
+  leaderboard = leaderboard.slice(0,10);
+  let html="<h2>🏆 Leaderboard (Top 10)</h2><ol>";
+  leaderboard.forEach(entry=>html+=`<li>${entry.name}: ${entry.score}</li>`);
+  html+="</ol>";
+  document.getElementById("leaderboard").innerHTML = html;
+}
+
+// Show student history
+function showStudentHistory(){
+  const allData = JSON.parse(localStorage.getItem("spellingStudents")||"{}");
+  if(!allData[playerName]) return;
+  let html = `<h2>${playerName}'s History</h2>`;
+  allData[playerName].forEach((round,i)=>{
+    html += `<b>Round ${i+1} - Score: ${round.score} / ${round.attempts.length}</b><ul>`;
+    round.attempts.forEach(a=>{
+      html += `<li>Word: "${a.word}" | Typed: "${a.typed}" | ${a.correct?"✅ Correct":"❌ Incorrect"}</li>`;
+    });
+    html += "</ul>";
+  });
+  document.getElementById("student-history").innerHTML = html;
+}
+
+// Admin panel: show all students
+function showAllStudentData(){
+  const allData = JSON.parse(localStorage.getItem("spellingStudents")||"{}");
+  let html="<h3>All Student Data</h3>";
+  for(const student in allData){
+    html += `<b>${student}</b><ul>`;
+    allData[student].forEach((round,i)=>{
+      html += `<li>Round ${i+1} - Score: ${round.score} / ${round.attempts.length}<ul>`;
+      round.attempts.forEach(a=>{
+        html += `<li>Word: "${a.word}" | Typed: "${a.typed}" | ${a.correct?"✅ Correct":"❌ Incorrect"}</li>`;
+      });
+      html += "</ul></li>";
+    });
+    html += "</ul>";
+  }
+  document.getElementById("admin-panel").innerHTML = html;
+}
+
+// Clear all data (admin)
+function clearAllData(){
+  if(confirm("Are you sure you want to clear all student data?")){
+    localStorage.removeItem("spellingStudents");
+    document.getElementById("admin-panel").innerHTML="";
+    alert("All data cleared.");
+  }
+}
+</script>
+</body>
+</html>
